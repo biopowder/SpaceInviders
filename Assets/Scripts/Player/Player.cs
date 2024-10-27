@@ -1,10 +1,13 @@
 using Interfaces;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace ShootEmUp
 {
     public sealed class Player : MonoBehaviour, IDamageable
     {
+        public UnityEvent OnDeath;
+        
         [SerializeField]
         public Transform firePoint;
 
@@ -36,7 +39,7 @@ namespace ShootEmUp
 
             if (_currentHealth <= 0)
             {
-                // Notify
+                OnDeath?.Invoke();
             }
         }
     }

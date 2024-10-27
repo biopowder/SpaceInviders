@@ -15,7 +15,12 @@ namespace ShootEmUp
 
         private void Awake()
         {
-            // character.OnHealthEmpty += _ => Time.timeScale = 0;
+            character.OnDeath.AddListener(GameOver);
+        }
+
+        private static void GameOver()
+        {
+            Time.timeScale = 0;
         }
 
         private void Update()
@@ -58,6 +63,11 @@ namespace ShootEmUp
             Vector2 moveStep = moveDirection * (Time.fixedDeltaTime * character.Speed);
             Vector2 targetPosition = character.Rigidbody.position + moveStep;
             character.Rigidbody.MovePosition(targetPosition);
+        }
+
+        private void OnDestroy()
+        {
+            character.OnDeath.RemoveListener(GameOver);
         }
     }
 }

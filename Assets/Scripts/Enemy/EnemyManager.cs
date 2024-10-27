@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Random = UnityEngine.Random;
 
 namespace ShootEmUp
@@ -14,7 +13,7 @@ namespace ShootEmUp
 
         [SerializeField]
         private Transform[] attackPositions;
-        
+
         [SerializeField]
         private Player character;
 
@@ -26,14 +25,13 @@ namespace ShootEmUp
 
         [SerializeField]
         private Enemy prefab;
-        
-        [FormerlySerializedAs("_bulletSystem")]
+
         [SerializeField]
         private BulletManager bulletSystem;
-        
+
         private readonly HashSet<Enemy> _mActiveEnemies = new();
         private readonly Queue<Enemy> _enemyPool = new();
-        
+
         private void Awake()
         {
             for (var i = 0; i < 7; i++)
@@ -45,10 +43,10 @@ namespace ShootEmUp
 
         private IEnumerator Start()
         {
-            // while (true)
-            // {
+            while (true)
+            {
                 yield return new WaitForSeconds(Random.Range(1, 2));
-                
+
                 if (!_enemyPool.TryDequeue(out Enemy enemy))
                 {
                     enemy = Instantiate(prefab, container);
@@ -62,9 +60,9 @@ namespace ShootEmUp
                 Transform attackPosition = RandomPoint(attackPositions);
                 enemy.SetDestination(attackPosition.position);
                 enemy.Setup(bulletSystem, character);
-                
+
                 _mActiveEnemies.Add(enemy);
-            // }
+            }
         }
 
         private void FixedUpdate()
@@ -80,7 +78,7 @@ namespace ShootEmUp
             }
         }
 
-        private Transform RandomPoint(Transform[] points)
+        private static Transform RandomPoint(Transform[] points)
         {
             int index = Random.Range(0, points.Length);
             return points[index];

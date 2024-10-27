@@ -1,11 +1,13 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace ShootEmUp
 {
     public sealed class LevelBackground : MonoBehaviour
     {
+        [SerializeField]
+        private Params mParams;
+
         private float _startPositionY;
         private float _endPositionY;
         private float _movingSpeedY;
@@ -14,17 +16,13 @@ namespace ShootEmUp
 
         private Transform _myTransform;
 
-        [FormerlySerializedAs("m_params")]
-        [SerializeField]
-        private Params mParams;
-
         private void Awake()
         {
             _startPositionY = mParams.mStartPositionY;
             _endPositionY = mParams.mEndPositionY;
             _movingSpeedY = mParams.mMovingSpeedY;
             _myTransform = transform;
-            var position = _myTransform.position;
+            Vector3 position = _myTransform.position;
             _positionX = position.x;
             _positionZ = position.z;
         }
@@ -50,15 +48,12 @@ namespace ShootEmUp
         [Serializable]
         public sealed class Params
         {
-            [FormerlySerializedAs("m_startPositionY")]
             [SerializeField]
             public float mStartPositionY;
 
-            [FormerlySerializedAs("m_endPositionY")]
             [SerializeField]
             public float mEndPositionY;
 
-            [FormerlySerializedAs("m_movingSpeedY")]
             [SerializeField]
             public float mMovingSpeedY;
         }
