@@ -1,17 +1,13 @@
 using System;
+using Interfaces;
 using UnityEngine;
 
 namespace ShootEmUp
 {
     public sealed class Bullet : MonoBehaviour
     {
-        public event Action<Bullet, Collision2D> OnCollisionEntered;
-
         [NonSerialized]
-        public bool isPlayer;
-        
-        [NonSerialized]
-        public int damage;
+        public int Damage;
 
         [SerializeField]
         public new Rigidbody2D rigidbody2D;
@@ -19,9 +15,29 @@ namespace ShootEmUp
         [SerializeField]
         public SpriteRenderer spriteRenderer;
 
+        private BulletManager _bulletManager;
+        private LevelBounds _levelBounds;
+
+        public void Setup(BulletManager bulletManager, LevelBounds levelBounds)
+        {
+            _bulletManager = bulletManager;
+            _levelBounds = levelBounds;
+        }
+
+        private void FixedUpdate()
+        {
+            if (!_levelBounds.InBounds(transform.position))
+            {
+                _bulletManager.RemoveBullet(this);
+            }
+        }
+
         private void OnCollisionEnter2D(Collision2D collision)
         {
-            OnCollisionEntered?.Invoke(this, collision);
+            IDamageable damageable = collision.gameObject.GetComponent<IDamageable>();
+            damageable?.TakeDamage(Damage);
+
+            _bulletManager.RemoveBullet(this);
         }
     }
 }

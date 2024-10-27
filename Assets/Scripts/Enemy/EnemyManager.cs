@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Random = UnityEngine.Random;
 
 namespace ShootEmUp
@@ -26,28 +27,29 @@ namespace ShootEmUp
         [SerializeField]
         private Enemy prefab;
         
+        [FormerlySerializedAs("_bulletSystem")]
         [SerializeField]
-        private BulletManager _bulletSystem;
+        private BulletManager bulletSystem;
         
-        private readonly HashSet<Enemy> m_activeEnemies = new();
-        private readonly Queue<Enemy> enemyPool = new();
+        private readonly HashSet<Enemy> _mActiveEnemies = new();
+        private readonly Queue<Enemy> _enemyPool = new();
         
         private void Awake()
         {
             for (var i = 0; i < 7; i++)
             {
                 Enemy enemy = Instantiate(prefab, container);
-                enemyPool.Enqueue(enemy);
+                _enemyPool.Enqueue(enemy);
             }
         }
 
         private IEnumerator Start()
         {
-            while (true)
-            {
+            // while (true)
+            // {
                 yield return new WaitForSeconds(Random.Range(1, 2));
                 
-                if (!enemyPool.TryDequeue(out Enemy enemy))
+                if (!_enemyPool.TryDequeue(out Enemy enemy))
                 {
                     enemy = Instantiate(prefab, container);
                 }
@@ -59,40 +61,23 @@ namespace ShootEmUp
 
                 Transform attackPosition = RandomPoint(attackPositions);
                 enemy.SetDestination(attackPosition.position);
-                enemy.target = character;
-
-                if (m_activeEnemies.Count < 5 && m_activeEnemies.Add(enemy))
-                {
-                    enemy.OnFire += OnFire;
-                }
-            }
+                enemy.Setup(bulletSystem, character);
+                
+                _mActiveEnemies.Add(enemy);
+            // }
         }
 
         private void FixedUpdate()
         {
-            foreach (Enemy enemy in m_activeEnemies.ToArray())
+            foreach (Enemy enemy in _mActiveEnemies.ToArray())
             {
-                if (enemy.health <= 0)
-                {
-                    enemy.OnFire -= OnFire;
-                    enemy.transform.SetParent(container);
+                if (!enemy.IsDead) continue;
 
-                    m_activeEnemies.Remove(enemy);
-                    enemyPool.Enqueue(enemy);
-                }
+                enemy.transform.SetParent(container);
+
+                _mActiveEnemies.Remove(enemy);
+                _enemyPool.Enqueue(enemy);
             }
-        }
-
-        private void OnFire(Vector2 position, Vector2 direction)
-        {
-            _bulletSystem.SpawnBullet(
-                position,
-                Color.red,
-                (int) PhysicsLayer.ENEMY_BULLET,
-                1,
-                false,
-                direction * 2
-            );
         }
 
         private Transform RandomPoint(Transform[] points)

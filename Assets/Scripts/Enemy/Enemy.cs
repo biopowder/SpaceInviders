@@ -1,25 +1,15 @@
-using System;
+using Interfaces;
 using UnityEngine;
 
 namespace ShootEmUp
 {
-    public sealed class Enemy : MonoBehaviour
+    public sealed class Enemy : MonoBehaviour, IDamageable
     {
-        public delegate void FireHandler(Vector2 position, Vector2 direction);
-        
-        public event FireHandler OnFire;
-
-        [SerializeField]
-        public bool isPlayer;
-        
         [SerializeField]
         public Transform firePoint;
-        
-        [SerializeField]
-        public int health;
 
         [SerializeField]
-        public Rigidbody2D _rigidbody;
+        private int health;
 
         [SerializeField]
         public float speed = 5.0f;
@@ -27,50 +17,76 @@ namespace ShootEmUp
         [SerializeField]
         private float countdown;
 
-        [NonSerialized]
-        public Player target;
+        [SerializeField]
+        private int damage = 1;
 
-        private Vector2 destination;
-        private float currentTime;
-        private bool isPointReached;
+        public bool IsDead => _currentHealth <= 0;
+
+        private int _currentHealth;
+        private Rigidbody2D _rigidbody;
+
+        private Vector2 _destination;
+        private float _currentTime;
+        private bool _isPointReached;
+
+        private BulletManager _bulletManager;
+        private Player _target;
+
+        private void Awake()
+        {
+            _rigidbody = GetComponent<Rigidbody2D>();
+        }
+
+        private void OnEnable()
+        {
+            _currentHealth = health;
+        }
+
+        public void Setup(BulletManager bulletManager, Player player)
+        {
+            _bulletManager = bulletManager;
+            _target = player;
+        }
 
         public void Reset()
         {
-            currentTime = countdown;
+            _currentTime = countdown;
         }
-        
+
         public void SetDestination(Vector2 endPoint)
         {
-            destination = endPoint;
-            isPointReached = false;
+            _destination = endPoint;
+            _isPointReached = false;
         }
 
         private void FixedUpdate()
         {
-            if (isPointReached)
+            if (_isPointReached)
             {
-                //Attack:
-                if (target.health <= 0)
-                    return;
+                if (!_target.IsAlive) return;
 
-                currentTime -= Time.fixedDeltaTime;
-                if (currentTime <= 0)
-                {
-                    Vector2 startPosition = firePoint.position;
-                    Vector2 vector = (Vector2) target.transform.position - startPosition;
-                    Vector2 direction = vector.normalized;
-                    OnFire?.Invoke(startPosition, direction);
-                    
-                    currentTime += countdown;
-                }
+                _currentTime -= Time.fixedDeltaTime;
+
+                if (_currentTime > 0) return;
+
+                Vector2 startPosition = firePoint.position;
+                Vector2 vector = (Vector2)_target.transform.position - startPosition;
+                Vector2 direction = vector.normalized;
+
+                _bulletManager.SpawnBullet(startPosition,
+                    Color.red,
+                    (int)PhysicsLayer.EnemyBullet,
+                    damage,
+                    direction);
+
+                _currentTime += countdown;
             }
             else
             {
-                //Move:
-                Vector2 vector = destination - (Vector2) transform.position;
+                Vector2 vector = _destination - (Vector2)transform.position;
                 if (vector.magnitude <= 0.25f)
                 {
-                    isPointReached = true;
+                    _isPointReached = true;
                     return;
                 }
 
@@ -78,6 +94,11 @@ namespace ShootEmUp
                 Vector2 nextPosition = _rigidbody.position + direction * speed;
                 _rigidbody.MovePosition(nextPosition);
             }
+        }
+
+        public void TakeDamage(int damageTaken)
+        {
+            _currentHealth -= damageTaken;
         }
     }
 }

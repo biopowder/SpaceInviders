@@ -1,61 +1,66 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ShootEmUp
 {
     public sealed class LevelBackground : MonoBehaviour
     {
-        private float startPositionY;
-        private float endPositionY;
-        private float movingSpeedY;
-        private float positionX;
-        private float positionZ;
+        private float _startPositionY;
+        private float _endPositionY;
+        private float _movingSpeedY;
+        private float _positionX;
+        private float _positionZ;
 
-        private Transform myTransform;
+        private Transform _myTransform;
 
+        [FormerlySerializedAs("m_params")]
         [SerializeField]
-        private Params m_params;
+        private Params mParams;
 
         private void Awake()
         {
-            startPositionY = m_params.m_startPositionY;
-            endPositionY = m_params.m_endPositionY;
-            movingSpeedY = m_params.m_movingSpeedY;
-            myTransform = transform;
-            var position = myTransform.position;
-            positionX = position.x;
-            positionZ = position.z;
+            _startPositionY = mParams.mStartPositionY;
+            _endPositionY = mParams.mEndPositionY;
+            _movingSpeedY = mParams.mMovingSpeedY;
+            _myTransform = transform;
+            var position = _myTransform.position;
+            _positionX = position.x;
+            _positionZ = position.z;
         }
 
         private void FixedUpdate()
         {
-            if (myTransform.position.y <= endPositionY)
+            if (_myTransform.position.y <= _endPositionY)
             {
-                myTransform.position = new Vector3(
-                    positionX,
-                    startPositionY,
-                    positionZ
+                _myTransform.position = new Vector3(
+                    _positionX,
+                    _startPositionY,
+                    _positionZ
                 );
             }
 
-            myTransform.position -= new Vector3(
-                positionX,
-                movingSpeedY * Time.fixedDeltaTime,
-                positionZ
+            _myTransform.position -= new Vector3(
+                _positionX,
+                _movingSpeedY * Time.fixedDeltaTime,
+                _positionZ
             );
         }
 
         [Serializable]
         public sealed class Params
         {
+            [FormerlySerializedAs("m_startPositionY")]
             [SerializeField]
-            public float m_startPositionY;
+            public float mStartPositionY;
 
+            [FormerlySerializedAs("m_endPositionY")]
             [SerializeField]
-            public float m_endPositionY;
+            public float mEndPositionY;
 
+            [FormerlySerializedAs("m_movingSpeedY")]
             [SerializeField]
-            public float m_movingSpeedY;
+            public float mMovingSpeedY;
         }
     }
 }
