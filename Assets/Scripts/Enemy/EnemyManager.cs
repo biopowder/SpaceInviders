@@ -29,12 +29,21 @@ namespace ShootEmUp
         [SerializeField]
         private BulletManager bulletSystem;
 
+        [SerializeField]
+        private int enemyCountInPool = 7;
+
+        [SerializeField]
+        private float minSpawnTime = 1;
+
+        [SerializeField]
+        private float maxSpawnTime = 3;
+
         private readonly HashSet<Enemy> _mActiveEnemies = new();
         private readonly Queue<Enemy> _enemyPool = new();
 
         private void Awake()
         {
-            for (var i = 0; i < 7; i++)
+            for (var i = 0; i < enemyCountInPool; i++)
             {
                 Enemy enemy = Instantiate(prefab, container);
                 _enemyPool.Enqueue(enemy);
@@ -45,7 +54,7 @@ namespace ShootEmUp
         {
             while (true)
             {
-                yield return new WaitForSeconds(Random.Range(1, 2));
+                yield return new WaitForSeconds(Random.Range(minSpawnTime, maxSpawnTime));
 
                 if (!_enemyPool.TryDequeue(out Enemy enemy))
                 {
@@ -59,7 +68,8 @@ namespace ShootEmUp
 
                 Transform attackPosition = RandomPoint(attackPositions);
                 enemy.SetDestination(attackPosition.position);
-                enemy.Setup(bulletSystem, character);
+                enemy.Setup(bulletSystem);
+                enemy.SetPlayer(character);
 
                 _mActiveEnemies.Add(enemy);
             }

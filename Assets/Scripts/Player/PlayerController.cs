@@ -15,7 +15,12 @@ namespace ShootEmUp
 
         private void Awake()
         {
-            character.OnDeath.AddListener(GameOver);
+            character.OnDeath += GameOver;
+        }
+
+        private void Start()
+        {
+            character.Setup(bulletManager);
         }
 
         private static void GameOver()
@@ -48,26 +53,16 @@ namespace ShootEmUp
         {
             if (_fireRequired)
             {
-                bulletManager.SpawnBullet(
-                    character.firePoint.position,
-                    Color.blue,
-                    (int)PhysicsLayer.PlayerBullet,
-                    1,
-                    character.firePoint.rotation * Vector3.up * 3
-                );
-
+                character.Shoot();
                 _fireRequired = false;
             }
 
-            Vector2 moveDirection = new(_moveDirection, 0);
-            Vector2 moveStep = moveDirection * (Time.fixedDeltaTime * character.Speed);
-            Vector2 targetPosition = character.Rigidbody.position + moveStep;
-            character.Rigidbody.MovePosition(targetPosition);
+            character.Move(new Vector2(_moveDirection, 0));
         }
 
         private void OnDestroy()
         {
-            character.OnDeath.RemoveListener(GameOver);
+            character.OnDeath -= GameOver;
         }
     }
 }

@@ -1,43 +1,35 @@
-using Interfaces;
+using System;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace ShootEmUp
 {
-    public sealed class Player : MonoBehaviour, IDamageable
+    public class Player : Ship
     {
-        public UnityEvent OnDeath;
+        public event Action OnDeath;
         
-        [SerializeField]
-        public Transform firePoint;
-
-        [SerializeField]
-        private int maxHealth;
-
-        [SerializeField]
-        private float speed = 5.0f;
-
-        public float Speed => speed;
-
-        public Rigidbody2D Rigidbody => _playerRigidbody;
-
-        public bool IsAlive => _currentHealth > 0;
-
-        private Rigidbody2D _playerRigidbody;
-
-        private int _currentHealth;
-
-        private void Awake()
+        public override void Move(Vector2 direction)
         {
-            _currentHealth = maxHealth;
-            _playerRigidbody = GetComponent<Rigidbody2D>();
+            Vector2 moveStep = direction * (Time.fixedDeltaTime * Speed);
+            Vector2 targetPosition = Rigidbody.position + moveStep;
+            Rigidbody.MovePosition(targetPosition);
         }
 
-        public void TakeDamage(int damage)
+        public override void Shoot()
         {
-            _currentHealth -= damage;
+            BulletManager.SpawnBullet(
+                firePoint.position,
+                Color.blue,
+                (int)PhysicsLayer.PlayerBullet,
+                damage,
+                firePoint.rotation * Vector3.up * 3
+            );
+        }
 
-            if (_currentHealth <= 0)
+        public override void TakeDamage(int damageToTake)
+        {
+            base.TakeDamage(damageToTake);
+
+            if (CurrentHealth <= 0)
             {
                 OnDeath?.Invoke();
             }

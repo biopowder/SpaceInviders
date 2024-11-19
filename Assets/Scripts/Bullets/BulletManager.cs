@@ -6,10 +6,10 @@ namespace ShootEmUp
     public sealed class BulletManager : MonoBehaviour
     {
         [SerializeField]
-        public Bullet prefab;
+        private Bullet prefab;
 
         [SerializeField]
-        public Transform worldTransform;
+        private Transform worldTransform;
 
         [SerializeField]
         private LevelBounds levelBounds;
@@ -17,11 +17,16 @@ namespace ShootEmUp
         [SerializeField]
         private Transform container;
 
+        [SerializeField]
+        private int initialBulletCountPool = 10;
+
         private readonly Queue<Bullet> _bulletPool = new();
+
+        private readonly List<Bullet> _bullets = new();
 
         private void Awake()
         {
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < initialBulletCountPool; i++)
             {
                 Bullet bullet = Instantiate(prefab, container);
                 _bulletPool.Enqueue(bullet);
@@ -45,18 +50,32 @@ namespace ShootEmUp
                 bullet = Instantiate(prefab, worldTransform);
             }
 
-            bullet.transform.position = position;
-            bullet.spriteRenderer.color = color;
-            bullet.gameObject.layer = physicsLayer;
+            bullet.SetPosition(position);
+            bullet.SetLayer(physicsLayer);
+            bullet.SetColor(color);
+            bullet.SetVelocity(velocity);
             bullet.Damage = damage;
-            bullet.rigidbody2D.velocity = velocity;
-            bullet.Setup(this, levelBounds);
+            bullet.OnDestroyed += RemoveBullet;
+
+            _bullets.Add(bullet);
         }
 
-        public void RemoveBullet(Bullet bullet)
+        private void FixedUpdate()
+        {
+            for (int i = _bullets.Count - 1; i >= 0; i--)
+            {
+                if (!levelBounds.InBounds(_bullets[i].transform.position))
+                {
+                    RemoveBullet(_bullets[i]);
+                }
+            }
+        }
+
+        private void RemoveBullet(Bullet bullet)
         {
             bullet.transform.SetParent(container);
             _bulletPool.Enqueue(bullet);
+            _bullets.Remove(bullet);
         }
     }
 }

@@ -6,38 +6,45 @@ namespace ShootEmUp
 {
     public sealed class Bullet : MonoBehaviour
     {
-        [NonSerialized]
-        public int Damage;
+        public event Action<Bullet> OnDestroyed;
 
         [SerializeField]
-        public new Rigidbody2D rigidbody2D;
+        private new Rigidbody2D rigidbody2D;
 
         [SerializeField]
-        public SpriteRenderer spriteRenderer;
+        private SpriteRenderer spriteRenderer;
 
-        private BulletManager _bulletManager;
-        private LevelBounds _levelBounds;
+        public int Damage { get; set; }
 
-        public void Setup(BulletManager bulletManager, LevelBounds levelBounds)
+        public void SetColor(Color color)
         {
-            _bulletManager = bulletManager;
-            _levelBounds = levelBounds;
+            spriteRenderer.color = color;
         }
 
-        private void FixedUpdate()
+        public void SetVelocity(Vector2 velocity)
         {
-            if (!_levelBounds.InBounds(transform.position))
-            {
-                _bulletManager.RemoveBullet(this);
-            }
+            rigidbody2D.velocity = velocity;
+        }
+
+        public void SetLayer(int layer)
+        {
+            gameObject.layer = layer;
+        }
+
+        public void SetPosition(Vector2 position)
+        {
+            transform.position = position;
         }
 
         private void OnCollisionEnter2D(Collision2D collision)
         {
             IDamageable damageable = collision.gameObject.GetComponent<IDamageable>();
             damageable?.TakeDamage(Damage);
-
-            _bulletManager.RemoveBullet(this);
+            
+            if (damageable != null)
+            {
+                OnDestroyed?.Invoke(this);
+            }
         }
     }
 }
