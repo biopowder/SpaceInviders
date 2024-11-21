@@ -95,14 +95,27 @@ namespace Inventories
                 return false;
             }
 
-            for (int y = 0; y < item.Size.y; y++)
+            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
             {
-                for (int x = 0; x < item.Size.x; x++)
-                {
-                    Vector2Int pos = new(position.x + x, position.y + y);
+                Vector2Int existingPosition = kvp.Key;
+                Item existingItem = kvp.Value;
 
-                    if (_items.ContainsKey(pos))
-                        return false;
+                int existingLeft = existingPosition.x;
+                int existingRight = existingPosition.x + existingItem.Size.x;
+                int existingTop = existingPosition.y;
+                int existingBottom = existingPosition.y + existingItem.Size.y;
+
+                int newLeft = position.x;
+                int newRight = position.x + item.Size.x;
+                int newTop = position.y;
+                int newBottom = position.y + item.Size.y;
+
+                if (newLeft < existingRight &&
+                    newRight > existingLeft &&
+                    newTop < existingBottom &&
+                    newBottom > existingTop)
+                {
+                    return false;
                 }
             }
 
@@ -119,11 +132,21 @@ namespace Inventories
         /// </summary>
         public bool AddItem(in Item item, in Vector2Int position)
         {
+            bool result = AddItemInternal(item, position);
+            if (result)
+            {
+                OnAdded?.Invoke(item, position);
+            }
+
+            return result;
+        }
+
+        private bool AddItemInternal(in Item item, in Vector2Int position)
+        {
             if (item == null) return false;
             if (!CanAddItem(item, position)) return false;
 
             _items.Add(position, item);
-            OnAdded?.Invoke(item, position);
             return true;
         }
 
@@ -149,9 +172,9 @@ namespace Inventories
         public bool AddItem(in Item item)
         {
             if (item == null) return false;
-            
+
             if (item.Size.x <= 0 || item.Size.y <= 0) throw new ArgumentException(nameof(item));
-            
+
             if (FindFreePosition(item.Size, out Vector2Int freePosition))
             {
                 return AddItem(item, freePosition);
@@ -172,7 +195,7 @@ namespace Inventories
                 for (int x = 0; x <= _width - size.x; x++)
                 {
                     Vector2Int position = new(x, y);
-                    
+
                     bool canPlace = true;
                     for (int checkY = 0; checkY < size.y; checkY++)
                     {
@@ -266,7 +289,39 @@ namespace Inventories
             => throw new NotImplementedException();
 
         public bool RemoveItem(in Item item, out Vector2Int position)
-            => throw new NotImplementedException();
+        {
+            bool result = RemoveItemInternal(item, out position);
+            if (result)
+            {
+                OnRemoved?.Invoke(item, position);
+            }
+
+            return result;
+        }
+
+        private bool RemoveItemInternal(in Item item, out Vector2Int position)
+        {
+            if (item == null)
+            {
+                position = Vector2Int.zero;
+                return false;
+            }
+
+            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            {
+                if (kvp.Value.Equals(item))
+                {
+                    position = kvp.Key;
+
+                    _items.Remove(position);
+
+                    return true;
+                }
+            }
+
+            position = Vector2Int.zero;
+            return false;
+        }
 
         /// <summary>
         /// Returns an item at specified position 
@@ -281,7 +336,7 @@ namespace Inventories
             if (x < 0 || x >= _width || y < 0 || y >= _height)
                 throw new IndexOutOfRangeException();
 
-            Vector2Int position = new Vector2Int(x, y);
+            Vector2Int position = new(x, y);
 
             foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
             {
@@ -295,7 +350,7 @@ namespace Inventories
                 }
             }
 
-            return null;
+            throw new NullReferenceException();
         }
 
         public bool TryGetItem(in Vector2Int position, out Item item)
@@ -311,7 +366,16 @@ namespace Inventories
                 return false;
             }
 
-            item = GetItem(x, y);
+            try
+            {
+                item = GetItem(x, y);
+            }
+            catch (NullReferenceException)
+            {
+                item = null;
+                return false;
+            }
+
             return item != null;
         }
 
@@ -320,14 +384,28 @@ namespace Inventories
         /// </summary>
         public Vector2Int[] GetPositions(Item item)
         {
-            if (item == null) throw new ArgumentNullException(nameof(item));
+            if (item == null) throw new NullReferenceException(nameof(item));
 
-            Vector2Int[] positions = _items.Where(kvp => kvp.Value.Equals(item)).Select(kvp => kvp.Key).ToArray();
+            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            {
+                if (kvp.Value.Equals(item))
+                {
+                    Vector2Int startPosition = kvp.Key;
+                    List<Vector2Int> positions = new();
 
-            if (positions.Length == 0)
-                throw new InvalidOperationException("The specified item is not in the inventory.");
+                    for (int x = 0; x < item.Size.x; x++)
+                    {
+                        for (int y = 0; y < item.Size.y; y++)
+                        {
+                            positions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
+                        }
+                    }
 
-            return positions;
+                    return positions.ToArray();
+                }
+            }
+
+            throw new KeyNotFoundException(nameof(item));
         }
 
 
@@ -339,9 +417,28 @@ namespace Inventories
                 return false;
             }
 
-            positions = _items.Where(kvp => kvp.Value.Equals(item)).Select(kvp => kvp.Key).ToArray();
+            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            {
+                if (kvp.Value.Equals(item))
+                {
+                    Vector2Int startPosition = kvp.Key;
+                    List<Vector2Int> allPositions = new();
 
-            return positions.Length > 0;
+                    for (int x = 0; x < item.Size.x; x++)
+                    {
+                        for (int y = 0; y < item.Size.y; y++)
+                        {
+                            allPositions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
+                        }
+                    }
+
+                    positions = allPositions.ToArray();
+                    return true;
+                }
+            }
+
+            positions = null;
+            return false;
         }
 
 
@@ -350,6 +447,8 @@ namespace Inventories
         /// </summary>
         public void Clear()
         {
+            if (_items.Count <= 0) return;
+
             _items.Clear();
             OnCleared?.Invoke();
         }
@@ -366,19 +465,95 @@ namespace Inventories
         /// Moves a specified item to a target position if it exists
         /// </summary>
         public bool MoveItem(in Item item, in Vector2Int newPosition)
-            => throw new NotImplementedException();
+        {
+            if (item == null) throw new ArgumentNullException(nameof(item));
+
+            if (newPosition.x < 0 || newPosition.x >= _width || newPosition.y < 0 || newPosition.y >= _height)
+                return false;
+
+            if (!TryGetPositions(item, out Vector2Int[] positions))
+                return false;
+
+            Vector2Int currentPosition = positions[0];
+
+            RemoveItemInternal(item, out _);
+
+            if (CanAddItem(item, newPosition))
+            {
+                AddItemInternal(item, newPosition);
+                OnMoved?.Invoke(item, newPosition);
+                return true;
+            }
+
+            AddItemInternal(item, currentPosition);
+            return false;
+        }
+
 
         /// <summary>
         /// Reorganizes inventory space to make the free area uniform
         /// </summary>
         public void ReorganizeSpace()
-            => throw new NotImplementedException();
+        {
+            var itemsWithPositions = _items
+                .Select(kvp => new { Item = kvp.Value, OriginalPosition = kvp.Key })
+                .ToList();
+
+            Clear();
+
+            itemsWithPositions = itemsWithPositions
+                .OrderByDescending(i => i.Item.Size.x * i.Item.Size.y)
+                .ThenBy(i => i.OriginalPosition.y)
+                .ThenBy(i => i.OriginalPosition.x)
+                .ToList();
+
+            foreach (var entry in itemsWithPositions)
+            {
+                if (FindFreePosition(entry.Item.Size, out Vector2Int newPosition))
+                {
+                    AddItem(entry.Item, newPosition);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "Failed to reorganize space: no free position found for an item.");
+                }
+            }
+        }
 
         /// <summary>
         /// Copies inventory items to a specified matrix
         /// </summary>
         public void CopyTo(in Item[,] matrix)
-            => throw new NotImplementedException();
+        {
+            if (matrix == null)
+                throw new ArgumentNullException(nameof(matrix));
+
+            if (matrix.GetLength(0) != _height || matrix.GetLength(1) != _width)
+                throw new ArgumentException("Matrix dimensions must match inventory dimensions.");
+
+            for (int y = 0; y < matrix.GetLength(0); y++)
+            {
+                for (int x = 0; x < matrix.GetLength(1); x++)
+                {
+                    matrix[y, x] = null;
+                }
+            }
+
+            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            {
+                Vector2Int position = kvp.Key;
+                Item item = kvp.Value;
+
+                for (int y = 0; y < item.Size.y; y++)
+                {
+                    for (int x = 0; x < item.Size.x; x++)
+                    {
+                        matrix[position.x + x, position.y + y] = item;
+                    }
+                }
+            }
+        }
 
         public IEnumerator<Item> GetEnumerator()
         {
