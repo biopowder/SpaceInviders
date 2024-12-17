@@ -4,50 +4,78 @@ using UnityEngine;
 
 namespace ShootEmUp
 {
-    public abstract class Ship : MonoBehaviour, IDamageable
+    public class Ship : MonoBehaviour, IDamageable
     {
         [SerializeField]
-        protected Transform firePoint;
+        private Transform firePoint;
 
         [SerializeField]
-        protected int maxHealth;
+        private int maxHealth;
 
         [SerializeField]
         private float speed = 5.0f;
 
         [SerializeField]
-        protected int damage = 1;
-        
-        public float Speed => speed;
+        private int damage = 1;
 
-        public Rigidbody2D Rigidbody => _playerRigidbody;
+        [SerializeField]
+        private int layer;
 
-        public bool IsAlive => CurrentHealth > 0;
+        [SerializeField]
+        private Color bulletColor;
+
+        public bool IsAlive => _currentHealth > 0;
 
         private Rigidbody2D _playerRigidbody;
 
-        protected int CurrentHealth;
-        
-        protected BulletManager BulletManager;
+        private int _currentHealth;
+
+        private BulletManager _bulletManager;
+
+        public event Action OnDeath;
 
         private void Awake()
         {
             _playerRigidbody = GetComponent<Rigidbody2D>();
         }
 
-        public void Setup(BulletManager bulletManager)
+        private void OnEnable()
         {
-            BulletManager = bulletManager;
-            CurrentHealth = maxHealth;
+            _currentHealth = maxHealth;
         }
 
-        public abstract void Move(Vector2 direction);
-        public abstract void Shoot();
+        public void Setup(BulletManager bulletManager)
+        {
+            _bulletManager = bulletManager;
+            _currentHealth = maxHealth;
+        }
+
+        public void Move(Vector2 direction)
+        {
+            Vector2 moveStep = direction * (Time.fixedDeltaTime * speed);
+            Vector2 targetPosition = _playerRigidbody.position + moveStep;
+            _playerRigidbody.MovePosition(targetPosition);
+        }
+
+        public void Shoot(Vector3 direction)
+        {
+            Vector2 startPosition = firePoint.position;
+
+            _bulletManager.SpawnBullet(startPosition,
+                bulletColor,
+                layer,
+                damage,
+                direction);
+        }
 
         public virtual void TakeDamage(int damageToTake)
         {
-            CurrentHealth -= damageToTake;
-            Debug.Log($"Current health: {CurrentHealth}");
+            _currentHealth -= damageToTake;
+
+            if (_currentHealth <= 0)
+            {
+                OnDeath?.Invoke();
+            }
         }
     }
 }

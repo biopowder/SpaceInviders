@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -15,76 +14,42 @@ namespace ShootEmUp
         private Transform[] attackPositions;
 
         [SerializeField]
-        private Player character;
-
-        [SerializeField]
-        private Transform worldTransform;
-
-        [SerializeField]
-        private Transform container;
-
-        [SerializeField]
-        private Enemy prefab;
+        private Ship character;
 
         [SerializeField]
         private BulletManager bulletSystem;
 
         [SerializeField]
-        private int enemyCountInPool = 7;
+        private EnemyPool enemyPool;
 
-        [SerializeField]
-        private float minSpawnTime = 1;
+        private readonly HashSet<Ship> _mActiveEnemies = new();
 
-        [SerializeField]
-        private float maxSpawnTime = 3;
-
-        private readonly HashSet<Enemy> _mActiveEnemies = new();
-        private readonly Queue<Enemy> _enemyPool = new();
-
-        private void Awake()
+        public void Spawn()
         {
-            for (var i = 0; i < enemyCountInPool; i++)
-            {
-                Enemy enemy = Instantiate(prefab, container);
-                _enemyPool.Enqueue(enemy);
-            }
-        }
+            Ship ship = enemyPool.Get();
 
-        private IEnumerator Start()
-        {
-            while (true)
-            {
-                yield return new WaitForSeconds(Random.Range(minSpawnTime, maxSpawnTime));
+            Transform spawnPosition = RandomPoint(spawnPositions);
+            ship.transform.position = spawnPosition.position;
 
-                if (!_enemyPool.TryDequeue(out Enemy enemy))
-                {
-                    enemy = Instantiate(prefab, container);
-                }
+            Transform attackPosition = RandomPoint(attackPositions);
 
-                enemy.transform.SetParent(worldTransform);
+            EnemyController enemyController = ship.GetComponent<EnemyController>();
+            enemyController.SetDestination(attackPosition.position);
+            enemyController.SetPlayer(character);
 
-                Transform spawnPosition = RandomPoint(spawnPositions);
-                enemy.transform.position = spawnPosition.position;
+            ship.Setup(bulletSystem);
 
-                Transform attackPosition = RandomPoint(attackPositions);
-                enemy.SetDestination(attackPosition.position);
-                enemy.Setup(bulletSystem);
-                enemy.SetPlayer(character);
-
-                _mActiveEnemies.Add(enemy);
-            }
+            _mActiveEnemies.Add(ship);
         }
 
         private void FixedUpdate()
         {
-            foreach (Enemy enemy in _mActiveEnemies.ToArray())
+            foreach (Ship enemy in _mActiveEnemies.ToArray())
             {
-                if (!enemy.IsDead) continue;
-
-                enemy.transform.SetParent(container);
+                if (enemy.IsAlive) continue;
 
                 _mActiveEnemies.Remove(enemy);
-                _enemyPool.Enqueue(enemy);
+                enemyPool.Return(enemy);
             }
         }
 

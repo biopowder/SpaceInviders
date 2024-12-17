@@ -6,32 +6,12 @@ namespace ShootEmUp
     public sealed class BulletManager : MonoBehaviour
     {
         [SerializeField]
-        private Bullet prefab;
-
-        [SerializeField]
-        private Transform worldTransform;
-
-        [SerializeField]
         private LevelBounds levelBounds;
 
         [SerializeField]
-        private Transform container;
-
-        [SerializeField]
-        private int initialBulletCountPool = 10;
-
-        private readonly Queue<Bullet> _bulletPool = new();
+        private BulletPool bulletPool;
 
         private readonly List<Bullet> _bullets = new();
-
-        private void Awake()
-        {
-            for (int i = 0; i < initialBulletCountPool; i++)
-            {
-                Bullet bullet = Instantiate(prefab, container);
-                _bulletPool.Enqueue(bullet);
-            }
-        }
 
         public void SpawnBullet(
             Vector2 position,
@@ -41,14 +21,7 @@ namespace ShootEmUp
             Vector2 velocity
         )
         {
-            if (_bulletPool.TryDequeue(out Bullet bullet))
-            {
-                bullet.transform.SetParent(worldTransform);
-            }
-            else
-            {
-                bullet = Instantiate(prefab, worldTransform);
-            }
+            Bullet bullet = bulletPool.Get();
 
             bullet.SetPosition(position);
             bullet.SetLayer(physicsLayer);
@@ -73,8 +46,7 @@ namespace ShootEmUp
 
         private void RemoveBullet(Bullet bullet)
         {
-            bullet.transform.SetParent(container);
-            _bulletPool.Enqueue(bullet);
+            bulletPool.Return(bullet);
             _bullets.Remove(bullet);
         }
     }

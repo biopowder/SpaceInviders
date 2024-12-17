@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5568771391735819375}
   - component: {fileID: 659620479434099170}
   - component: {fileID: 102605417607457000}
+  - component: {fileID: 1903498666029260062}
   m_Layer: 11
   m_Name: Enemy
   m_TagString: Untagged
@@ -162,11 +163,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e09a324f54d94d6e84681731f36566c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  countdown: 1
+  ship: {fileID: 1903498666029260062}
+--- !u!114 &1903498666029260062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 559606060570185700}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 558b312fd53c491ab69f3e55255aae3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
   firePoint: {fileID: 3195880656587174614}
   maxHealth: 2
-  speed: 3
+  speed: 5
   damage: 1
-  countdown: 1
+  layer: 13
+  bulletColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &2239154907127902911
 GameObject:
   m_ObjectHideFlags: 0
