@@ -1,8 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using Enumerable = System.Linq.Enumerable;
 
 // ReSharper disable NotResolvedInText
 
@@ -17,12 +17,14 @@ namespace Inventories
 
         public int Width => _width;
         public int Height => _height;
-        public int Count => _items.Count;
+        public int Count => _itemsPositions.Count;
 
         private int _width;
         private int _height;
 
-        private readonly Dictionary<Vector2Int, Item> _items;
+        private readonly Item[,] _items;
+        private readonly Dictionary<Item, Vector2Int> _itemsPositions;
+        // private readonly Dictionary<Vector2Int, Item> _items;
 
         public Inventory(in int width, in int height)
         {
@@ -31,7 +33,8 @@ namespace Inventories
             _width = width;
             _height = height;
 
-            _items = new Dictionary<Vector2Int, Item>();
+            _items = new Item[width, height];
+            _itemsPositions = new Dictionary<Item, Vector2Int>();
         }
 
         public Inventory(
@@ -40,11 +43,15 @@ namespace Inventories
             params KeyValuePair<Item, Vector2Int>[] items
         ) : this(width, height)
         {
-            if (items == null || items.Length == 0) throw new ArgumentNullException(nameof(items));
+            if (items == null || items.Length == 0)
+                throw new ArgumentNullException(nameof(items));
 
             foreach (KeyValuePair<Item, Vector2Int> pair in items)
             {
-                _items.Add(pair.Value, pair.Key);
+                if (!CanAddItem(pair.Key, pair.Value))
+                    throw new ArgumentException($"Cannot add item {pair.Key.Name} at position {pair.Value}.");
+
+                AddItem(pair.Key, pair.Value);
             }
         }
 
@@ -72,50 +79,43 @@ namespace Inventories
             in IEnumerable<Item> items
         ) : this(width, height)
         {
-            if (items == null || !items.Any()) throw new ArgumentNullException(nameof(items));
+            if (items == null || !Enumerable.Any(items)) throw new ArgumentNullException(nameof(items));
         }
 
         /// <summary>
         /// Checks for adding an item on a specified position
         /// </summary>
-        public bool CanAddItem(Item item, in Vector2Int position)
+        public bool CanAddItem(Item item, Vector2Int position)
         {
-            if (item == null) return false;
-            if (item.Size.x <= 0 || item.Size.y <= 0) throw new ArgumentException(nameof(item));
+            if (item == null)
+            {
+                return false;
+            }
 
-            if (_items.Values.Any(existingItem => existingItem.Equals(item)))
+            if (item.Size.x <= 0 || item.Size.y <= 0)
+            {
+                throw new ArgumentException("Item size must be greater than zero.", nameof(item));
+            }
+
+            if (_itemsPositions.ContainsKey(item))
             {
                 return false;
             }
 
             if (position.x < 0 || position.y < 0 ||
-                position.x + item.Size.x > _width ||
-                position.y + item.Size.y > _height)
+                position.x + item.Size.x > _width || position.y + item.Size.y > _height)
             {
                 return false;
             }
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            for (int y = 0; y < item.Size.y; y++)
             {
-                Vector2Int existingPosition = kvp.Key;
-                Item existingItem = kvp.Value;
-
-                int existingLeft = existingPosition.x;
-                int existingRight = existingPosition.x + existingItem.Size.x;
-                int existingTop = existingPosition.y;
-                int existingBottom = existingPosition.y + existingItem.Size.y;
-
-                int newLeft = position.x;
-                int newRight = position.x + item.Size.x;
-                int newTop = position.y;
-                int newBottom = position.y + item.Size.y;
-
-                if (newLeft < existingRight &&
-                    newRight > existingLeft &&
-                    newTop < existingBottom &&
-                    newBottom > existingTop)
+                for (int x = 0; x < item.Size.x; x++)
                 {
-                    return false;
+                    if (_items[position.x + x, position.y + y] != null)
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -132,6 +132,21 @@ namespace Inventories
         /// </summary>
         public bool AddItem(in Item item, in Vector2Int position)
         {
+            if (item == null)
+            {
+                return false;
+            }
+
+            if (item.Size.x <= 0 || item.Size.y <= 0)
+            {
+                throw new ArgumentException("Item size must be greater than zero.", nameof(item));
+            }
+
+            if (_itemsPositions.ContainsKey(item))
+            {
+                return false;
+            }
+
             bool result = AddItemInternal(item, position);
             if (result)
             {
@@ -146,9 +161,18 @@ namespace Inventories
             if (item == null) return false;
             if (!CanAddItem(item, position)) return false;
 
-            _items.Add(position, item);
+            for (int y = 0; y < item.Size.y; y++)
+            {
+                for (int x = 0; x < item.Size.x; x++)
+                {
+                    _items[position.x + x, position.y + y] = item;
+                }
+            }
+
+            _itemsPositions[item] = position;
             return true;
         }
+
 
         public bool AddItem(in Item item, in int posX, in int posY)
         {
@@ -174,6 +198,11 @@ namespace Inventories
             if (item == null) return false;
 
             if (item.Size.x <= 0 || item.Size.y <= 0) throw new ArgumentException(nameof(item));
+
+            if (_itemsPositions.ContainsKey(item))
+            {
+                return false;
+            }
 
             if (FindFreePosition(item.Size, out Vector2Int freePosition))
             {
@@ -229,7 +258,7 @@ namespace Inventories
         /// </summary>
         public bool Contains(Item item)
         {
-            return item != null && _items.Any(pair => pair.Value.Equals(item));
+            return item != null && _itemsPositions.ContainsKey(item);
         }
 
         /// <summary>
@@ -242,19 +271,10 @@ namespace Inventories
 
         public bool IsOccupied(in int x, in int y)
         {
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
-            {
-                Vector2Int itemPosition = kvp.Key;
-                Item item = kvp.Value;
+            if (x < 0 || x >= _width || y < 0 || y >= _height)
+                throw new IndexOutOfRangeException("Position is out of bounds.");
 
-                if (x >= itemPosition.x && x < itemPosition.x + item.Size.x &&
-                    y >= itemPosition.y && y < itemPosition.y + item.Size.y)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return _items[x, y] != null;
         }
 
         /// <summary>
@@ -267,19 +287,10 @@ namespace Inventories
 
         public bool IsFree(in int x, in int y)
         {
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
-            {
-                Vector2Int itemPosition = kvp.Key;
-                Item item = kvp.Value;
+            if (x < 0 || x >= _width || y < 0 || y >= _height)
+                throw new IndexOutOfRangeException("Position is out of bounds.");
 
-                if (x >= itemPosition.x && x < itemPosition.x + item.Size.x &&
-                    y >= itemPosition.y && y < itemPosition.y + item.Size.y)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return _items[x, y] == null;
         }
 
         /// <summary>
@@ -301,26 +312,23 @@ namespace Inventories
 
         private bool RemoveItemInternal(in Item item, out Vector2Int position)
         {
-            if (item == null)
+            if (item == null || !_itemsPositions.TryGetValue(item, out position))
             {
                 position = Vector2Int.zero;
                 return false;
             }
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            for (int y = 0; y < item.Size.y; y++)
             {
-                if (kvp.Value.Equals(item))
+                for (int x = 0; x < item.Size.x; x++)
                 {
-                    position = kvp.Key;
-
-                    _items.Remove(position);
-
-                    return true;
+                    _items[position.x + x, position.y + y] = null;
                 }
             }
 
-            position = Vector2Int.zero;
-            return false;
+            _itemsPositions.Remove(item);
+
+            return true;
         }
 
         /// <summary>
@@ -334,23 +342,13 @@ namespace Inventories
         public Item GetItem(in int x, in int y)
         {
             if (x < 0 || x >= _width || y < 0 || y >= _height)
-                throw new IndexOutOfRangeException();
+                throw new IndexOutOfRangeException("Position is out of bounds.");
 
-            Vector2Int position = new(x, y);
+            Item item = _items[x, y];
+            if (item == null)
+                throw new NullReferenceException("No item found at the specified position.");
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
-            {
-                Vector2Int itemPosition = kvp.Key;
-                Item item = kvp.Value;
-
-                if (position.x >= itemPosition.x && position.x < itemPosition.x + item.Size.x &&
-                    position.y >= itemPosition.y && position.y < itemPosition.y + item.Size.y)
-                {
-                    return item;
-                }
-            }
-
-            throw new NullReferenceException();
+            return item;
         }
 
         public bool TryGetItem(in Vector2Int position, out Item item)
@@ -386,79 +384,86 @@ namespace Inventories
         {
             if (item == null) throw new NullReferenceException(nameof(item));
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            if (!_itemsPositions.TryGetValue(item, out Vector2Int startPosition))
+                throw new KeyNotFoundException($"Item not found in inventory: {nameof(item)}");
+
+            List<Vector2Int> positions = new();
+
+            for (int x = 0; x < item.Size.x; x++)
             {
-                if (kvp.Value.Equals(item))
+                for (int y = 0; y < item.Size.y; y++)
                 {
-                    Vector2Int startPosition = kvp.Key;
-                    List<Vector2Int> positions = new();
-
-                    for (int x = 0; x < item.Size.x; x++)
-                    {
-                        for (int y = 0; y < item.Size.y; y++)
-                        {
-                            positions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
-                        }
-                    }
-
-                    return positions.ToArray();
+                    positions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
                 }
             }
 
-            throw new KeyNotFoundException(nameof(item));
+            return positions.ToArray();
         }
-
 
         public bool TryGetPositions(Item item, out Vector2Int[] positions)
         {
-            if (item == null)
+            if (item == null || !_itemsPositions.TryGetValue(item, out Vector2Int startPosition))
             {
                 positions = null;
                 return false;
             }
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            List<Vector2Int> allPositions = new();
+
+            for (int x = 0; x < item.Size.x; x++)
             {
-                if (kvp.Value.Equals(item))
+                for (int y = 0; y < item.Size.y; y++)
                 {
-                    Vector2Int startPosition = kvp.Key;
-                    List<Vector2Int> allPositions = new();
-
-                    for (int x = 0; x < item.Size.x; x++)
-                    {
-                        for (int y = 0; y < item.Size.y; y++)
-                        {
-                            allPositions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
-                        }
-                    }
-
-                    positions = allPositions.ToArray();
-                    return true;
+                    allPositions.Add(new Vector2Int(startPosition.x + x, startPosition.y + y));
                 }
             }
 
-            positions = null;
-            return false;
+            positions = allPositions.ToArray();
+            return true;
         }
-
 
         /// <summary>
         /// Clears all inventory items
         /// </summary>
         public void Clear()
         {
-            if (_items.Count <= 0) return;
+            if (_itemsPositions.Count <= 0) return;
 
-            _items.Clear();
+            for (int y = 0; y < _height; y++)
+            {
+                for (int x = 0; x < _width; x++)
+                {
+                    _items[x, y] = null;
+                }
+            }
+
+            _itemsPositions.Clear();
+
             OnCleared?.Invoke();
         }
 
         /// <summary>
         /// Returns a count of items with a specified name
         /// </summary>
+        // public int GetItemCount(string name)
+        // {
+        //     if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+        //
+        //     return Enumerable.Count(_itemsPositions.Keys, item => item.Name == name);
+        // }
         public int GetItemCount(string name)
         {
-            return _items.Select(pair => pair.Value).Count(item => item.Name == name);
+            int count = 0;
+
+            foreach (Item item in _itemsPositions.Keys)
+            {
+                if ((name == null && item.Name == null) || (name != null && item.Name == name))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         /// <summary>
@@ -495,17 +500,20 @@ namespace Inventories
         /// </summary>
         public void ReorganizeSpace()
         {
-            var itemsWithPositions = _items
-                .Select(kvp => new { Item = kvp.Value, OriginalPosition = kvp.Key })
-                .ToList();
+            List<(Item Item, Vector2Int OriginalPosition)> itemsWithPositions = new();
+            foreach (KeyValuePair<Item, Vector2Int> entry in _itemsPositions)
+            {
+                itemsWithPositions.Add((entry.Key, entry.Value));
+            }
 
             Clear();
 
-            itemsWithPositions = itemsWithPositions
-                .OrderByDescending(i => i.Item.Size.x * i.Item.Size.y)
-                .ThenBy(i => i.OriginalPosition.y)
-                .ThenBy(i => i.OriginalPosition.x)
-                .ToList();
+            itemsWithPositions.Sort((a, b) =>
+            {
+                int areaA = a.Item.Size.x * a.Item.Size.y;
+                int areaB = b.Item.Size.x * b.Item.Size.y;
+                return areaB.CompareTo(areaA);
+            });
 
             foreach (var entry in itemsWithPositions)
             {
@@ -540,10 +548,10 @@ namespace Inventories
                 }
             }
 
-            foreach (KeyValuePair<Vector2Int, Item> kvp in _items)
+            foreach (KeyValuePair<Item, Vector2Int> itemPosition in _itemsPositions)
             {
-                Vector2Int position = kvp.Key;
-                Item item = kvp.Value;
+                var item = itemPosition.Key;
+                var position = itemPosition.Value;
 
                 for (int y = 0; y < item.Size.y; y++)
                 {
@@ -557,8 +565,7 @@ namespace Inventories
 
         public IEnumerator<Item> GetEnumerator()
         {
-            HashSet<Item> uniqueItems = new(_items.Values);
-            foreach (var item in uniqueItems)
+            foreach (Item item in _itemsPositions.Keys)
             {
                 yield return item;
             }
