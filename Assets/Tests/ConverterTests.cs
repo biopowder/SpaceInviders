@@ -1,10 +1,108 @@
+using System;
 using Homework;
 using NUnit.Framework;
 
 namespace Tests
 {
+    [TestFixture]
     public sealed class ConverterTests
     {
+        [Test]
+        public void Constructor_NullLoadingZone_ThrowsArgumentNullException()
+        {
+            // Arrange
+            ResourceZone unloadingZone = new(10);
+
+            // Assert
+            Assert.Throws<ArgumentNullException>(() => { new Converter(null, unloadingZone, 1, 1, 2f); },
+                "Constructor should throw if loadingZone is null.");
+        }
+
+        [Test]
+        public void Constructor_NullUnloadingZone_ThrowsArgumentNullException()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+
+            // Assert
+            Assert.Throws<ArgumentNullException>(() => { new Converter(loadingZone, null, 1, 1, 2f); },
+                "Constructor should throw if unloadingZone is null.");
+        }
+
+        [Test]
+        public void Constructor_NegativeAmountToTake_ThrowsArgumentException()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+            ResourceZone unloadingZone = new(10);
+
+            // Assert
+            Assert.Throws<ArgumentException>(() => { new Converter(loadingZone, unloadingZone, -1, 2, 1f); },
+                "amountToTake cannot be negative.");
+        }
+
+        [Test]
+        public void Constructor_NegativeAmountToDeliver_ThrowsArgumentException()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+            ResourceZone unloadingZone = new(10);
+
+            // Assert
+            Assert.Throws<ArgumentException>(() => { new Converter(loadingZone, unloadingZone, 1, -2, 1f); },
+                "amountToDeliver cannot be negative.");
+        }
+
+        [Test]
+        public void Constructor_ZeroOrNegativeConversionTime_ThrowsArgumentException()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+            ResourceZone unloadingZone = new(10);
+
+            // Assert
+            Assert.Throws<ArgumentException>(() => { new Converter(loadingZone, unloadingZone, 1, 1, 0f); },
+                "conversionTime must be > 0.");
+
+            Assert.Throws<ArgumentException>(() => { new Converter(loadingZone, unloadingZone, 1, 1, -1f); },
+                "conversionTime must be > 0.");
+        }
+
+        [Test]
+        public void ToggleOffImmediately_AfterConstructed_NoExceptions()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+            ResourceZone unloadingZone = new(10);
+
+            Converter converter = new(loadingZone, unloadingZone, 1, 1, 1f);
+
+            // Assert
+            Assert.DoesNotThrow(() => converter.ToggleConverter(false),
+                "Toggling off immediately should not cause any errors.");
+        }
+
+        [Test]
+        public void ToggleOnOffMultipleTimes_NoExceptions()
+        {
+            // Arrange
+            ResourceZone loadingZone = new(10);
+            ResourceZone unloadingZone = new(10);
+
+            Converter converter = new(loadingZone, unloadingZone, 1, 1, 1f);
+
+            // Assert
+            Assert.DoesNotThrow(() =>
+            {
+                converter.ToggleConverter(true);
+                converter.Update(0.5f);
+                converter.ToggleConverter(false);
+                converter.ToggleConverter(true);
+                converter.Update(1.0f);
+                converter.ToggleConverter(false);
+            }, "Repeatedly toggling on/off with partial updates should not cause exceptions.");
+        }
+
         [Test]
         public void NotEnoughResources_StopsImmediately()
         {
@@ -24,11 +122,11 @@ namespace Tests
             // Act
             converter.ToggleConverter(true);
             converter.Update(1f);
-            
+
             Assert.IsTrue(loadingZone.CurrentAmount == 2,
                 "After the first tick of 1s, we have already taken 2 resources.");
             Assert.IsTrue(unloadingZone.CurrentAmount == 0, "Not enough time has elapsed for unloading.");
-            
+
             converter.Update(1f);
             converter.ToggleConverter(false);
 

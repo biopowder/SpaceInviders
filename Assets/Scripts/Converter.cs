@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Homework
@@ -21,8 +22,18 @@ namespace Homework
         public Converter(ResourceZone loadingZone, ResourceZone unloadingZone,
             int amountToTake, int amountToDeliver, float conversionTime)
         {
-            _loadingZone = loadingZone;
-            _unloadingZone = unloadingZone;
+            if (amountToTake < 0)
+                throw new ArgumentException("amountToTake cannot be negative.", nameof(amountToTake));
+            if (amountToDeliver < 0)
+                throw new ArgumentException("amountToDeliver cannot be negative.", nameof(amountToDeliver));
+
+            if (conversionTime <= 0)
+                throw new ArgumentException("conversionTime must be > 0.", nameof(conversionTime));
+
+            _loadingZone = loadingZone ??
+                           throw new ArgumentNullException(nameof(loadingZone), "Loading zone cannot be null.");
+            _unloadingZone = unloadingZone ??
+                             throw new ArgumentNullException(nameof(unloadingZone), "Unloading zone cannot be null.");
             _amountToTake = amountToTake;
             _amountToDeliver = amountToDeliver;
             _conversionTime = conversionTime;
