@@ -3,7 +3,7 @@ using Zenject;
 
 namespace UI
 {
-    public class GameUiInstaller : MonoInstaller
+    public class GameUiInstaller : Installer<GameUiInstaller>
     {
         public override void InstallBindings()
         {

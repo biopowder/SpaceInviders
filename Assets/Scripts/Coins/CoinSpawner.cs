@@ -11,23 +11,22 @@ namespace Coins
         public event Action OnCollectAllCoins;
 
         private readonly IWorldBounds _worldBounds;
-        private readonly List<ICoin> _activeCoins = new();
-
-        private readonly Coin _coinPrefab;
+        private readonly CoinPool _coinPool;
+        private readonly List<Coin> _activeCoins = new();
 
         private readonly Action _onGameStart;
 
         private readonly Dictionary<ICoin, GameObject> _coinObjects = new();
 
-        public CoinSpawner(IWorldBounds worldBounds, Coin coinPrefab)
+        public CoinSpawner(IWorldBounds worldBounds, CoinPool coinPool)
         {
             _worldBounds = worldBounds;
-            _coinPrefab = coinPrefab;
+            _coinPool = coinPool;
         }
 
-        public bool IsCoinOnPosition(Vector2Int position, out ICoin coin)
+        public bool IsCoinOnPosition(Vector2Int position, out Coin coin)
         {
-            foreach (ICoin activeCoin in _activeCoins)
+            foreach (Coin activeCoin in _activeCoins)
             {
                 if (activeCoin.Position == position)
                 {
@@ -50,7 +49,7 @@ namespace Coins
                     position = _worldBounds.GetRandomPosition();
                 } while (IsPositionOccupied(position));
 
-                Coin coin = GameObject.Instantiate(_coinPrefab, (Vector2)position, Quaternion.identity, null);
+                Coin coin = _coinPool.Spawn(position);
                 coin.Generate();
                 _activeCoins.Add(coin);
                 _coinObjects[coin] = coin.gameObject;
@@ -70,9 +69,9 @@ namespace Coins
             return false;
         }
 
-        public void CollectCoin(ICoin coin)
+        public void CollectCoin(Coin coin)
         {
-            GameObject.Destroy(_coinObjects[coin]);
+            _coinPool.Despawn(coin);
             _activeCoins.Remove(coin);
 
             if (_activeCoins.Count == 0)

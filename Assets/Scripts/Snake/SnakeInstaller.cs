@@ -4,7 +4,7 @@ using Zenject;
 
 namespace Snake
 {
-    public class SnakeInstaller : MonoInstaller
+    public class SnakeInstaller : Installer<SnakeInstaller>
     {
         public override void InstallBindings()
         {

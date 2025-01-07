@@ -31,7 +31,7 @@ namespace Snake
 
         private void OnMoved(Vector2Int obj)
         {
-            if (_coinSpawner.IsCoinOnPosition(obj, out ICoin coin))
+            if (_coinSpawner.IsCoinOnPosition(obj, out Coin coin))
             {
                 _coinSpawner.CollectCoin(coin);
                 _score.Add(100);
